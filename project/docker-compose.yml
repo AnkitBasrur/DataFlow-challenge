@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: datasync-postgres
+    environment:
+      POSTGRES_USER: datasync
+      POSTGRES_PASSWORD: datasync
+      POSTGRES_DB: datasync
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U datasync"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ingestion:
+    build: ./packages/ingestion
+    container_name: datasync-ingestion
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://datasync:datasync@postgres:5432/datasync
+      API_BASE_URL: http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com/api/v1
+      API_KEY: ${API_KEY}
+      PAGE_SIZE: 1000
+      MIN_DELAY_MS: 6100
+      LOG_EVERY_PAGES: 5
+      TINY_DELAY_MS: 10
+      EXPORT_ONLY: ${EXPORT_ONLY:-false}
+    command: ["npm", "run", "start"]
+
+volumes:
+  pgdata:
