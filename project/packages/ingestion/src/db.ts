@@ -7,11 +7,12 @@ export type IngestionState = {
   cursor: string | null;
   page: number;
   ingested_count: number;
+  last_ts_ms: number | null;
 };
 
 export async function getState(db: Client): Promise<IngestionState> {
   const { rows } = await db.query(
-    "SELECT cursor, page, ingested_count FROM ingestion_state WHERE id=1",
+    "SELECT cursor, page, ingested_count, last_ts_ms FROM ingestion_state WHERE id=1",
   );
   return rows[0];
 }

@@ -33,7 +33,7 @@ services:
       MIN_DELAY_MS: 6100
       LOG_EVERY_PAGES: 5
       TINY_DELAY_MS: 10
-      EXPORT_ONLY: ${EXPORT_ONLY:-false}
+      EXPORT_ONLY: "false"
     command: ["npm", "run", "start"]
 
 volumes:

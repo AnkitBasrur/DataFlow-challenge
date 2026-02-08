@@ -1,7 +1,5 @@
 CREATE TABLE IF NOT EXISTS events (
   id TEXT PRIMARY KEY,
-  occurred_at TIMESTAMPTZ NULL,
-  received_at TIMESTAMPTZ NULL,
   raw JSONB NOT NULL
 );
 
@@ -10,8 +8,12 @@ CREATE TABLE IF NOT EXISTS ingestion_state (
   cursor TEXT NULL,
   page INTEGER NOT NULL DEFAULT 0,
   ingested_count BIGINT NOT NULL DEFAULT 0,
+  last_ts_ms BIGINT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE ingestion_state
+ADD COLUMN IF NOT EXISTS last_ts_ms BIGINT NULL;
 
 INSERT INTO ingestion_state (id)
 VALUES (1)

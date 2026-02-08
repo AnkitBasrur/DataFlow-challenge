@@ -64,7 +64,19 @@ export async function fetchOnePage(params: {
     throw new Error(`API ${res.status}: ${text.slice(0, 300)}`);
   }
 
-  const json = await res.json();
+  const text = await res.text();
+
+  // Sometimes API returns invalid JSON like {"data": NaN}
+  // Try to sanitize NaN -> null (JSON doesn't allow NaN)
+  const sanitized = text.replace(/\bNaN\b/g, "null");
+
+  let json: any;
+  try {
+    json = JSON.parse(sanitized);
+  } catch (err) {
+    // Log a short snippet for debugging, then throw a retryable error
+    throw new Error(`BAD_JSON: ${sanitized.slice(0, 200)}`);
+  }
   const events = findEventsArray(json);
   const hasMore = getHasMore(json);
   const total = getTotal(json);
@@ -88,21 +100,6 @@ export async function fetchOnePage(params: {
       ? Number(res.headers.get("retry-after"))
       : null,
   };
-
-  // log discovery on first request (no cursor yet)
-  if (!params.cursor) {
-    console.log("API discovery:", {
-      url: u.toString(),
-      topLevelKeys: Object.keys(json ?? {}).slice(0, 25),
-      paginationKeys: Object.keys(json?.pagination ?? {}).slice(0, 25),
-      eventsLen: events.length,
-      hasMore,
-      total,
-      nextCursorPresent: Boolean(nextCursor),
-      cursorExpiresIn,
-      rateLimit,
-    });
-  }
 
   return { events, hasMore, total, nextCursor, cursorExpiresIn, rateLimit };
 }
