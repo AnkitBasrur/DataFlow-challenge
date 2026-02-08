@@ -1,3 +1,59 @@
+## Project Documentation
+
+# DataSync Analytics – Event Ingestion (TypeScript + Postgres + Docker)
+
+This project ingests **all events** from the DataSync Analytics API and stores them in **PostgreSQL**. It is designed to run entirely in Docker and supports:
+
+- **Cursor-based pagination** (API discovery driven)
+- **Rate-limit aware** request pacing (reads `x-ratelimit-*` and `retry-after`)
+- **Resumable ingestion** using a Postgres checkpoint table (`ingestion_state`)
+- **Robust error handling** (retry on 5xx, tolerate transient empty pages, handle bad JSON)
+- **Export** of all ingested `event_id`s to a newline-delimited file for submission
+
+> ⚠️ Note: The API key is provided by the interviewer and must be passed at runtime.
+
+---
+
+## Architecture Overview
+
+### Components
+
+- `packages/ingestion` (Node 20 + TypeScript):
+  - Fetches events from API
+  - Inserts into Postgres (`events` table)
+  - Saves progress in `ingestion_state` so the process can resume after crashes
+  - Exports `event_ids.txt`
+
+- Postgres 15:
+  - Stores raw events (`JSONB`) keyed by event id
+  - Stores ingestion checkpoint state
+
+### Tables
+
+- `events(id TEXT PRIMARY KEY, raw JSONB NOT NULL)`
+- `ingestion_state(id=1, cursor TEXT, ingested_count BIGINT, last_ts_ms BIGINT, updated_at TIMESTAMPTZ)`
+
+The ingestion logic writes with:
+
+- `INSERT ... ON CONFLICT DO NOTHING` (safe idempotency)
+- Checkpoint update after each successful insert batch
+
+---
+
+## Running
+
+### Prerequisites
+
+- Docker + Docker Compose
+
+### Start ingestion (default)
+
+````bash
+API_KEY=YOUR_API_KEY sh run-ingestion.sh
+# or
+API_KEY=YOUR_API_KEY sh run-ingestion.sh ingest
+
+
 ## Overview
 
 Build a production-ready data ingestion system that extracts event data from the DataSync Analytics API and stores it in a PostgreSQL database.
@@ -52,14 +108,16 @@ Use this directory as your workspace. A `docker-compose.yml` is provided with Po
 
 ```bash
 docker compose up -d
-```
+````
 
 This gives you:
+
 - PostgreSQL at `localhost:5434`
 
 ### Exploring the Application
 
 **Dashboard:** http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com
+
 - Browse the dashboard to understand the data model
 - Curious developers explore everything...
 
@@ -110,10 +168,12 @@ Before submitting, push your solution to a GitHub repository. This allows us to 
 Submit a file containing all event IDs (one per line) along with your GitHub repo URL.
 
 **Headers:**
+
 - `X-API-Key`: Your API key
 - `Content-Type`: `text/plain` or `application/json`
 
 **Option 1: Plain text with query param (recommended)**
+
 ```bash
 curl -X POST \
   -H "X-API-Key: YOUR_API_KEY" \
@@ -123,6 +183,7 @@ curl -X POST \
 ```
 
 **Option 2: JSON**
+
 ```bash
 curl -X POST \
   -H "X-API-Key: YOUR_API_KEY" \
@@ -135,6 +196,7 @@ curl -X POST \
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -157,10 +219,12 @@ curl -X POST \
 ```
 
 **Limits:**
+
 - Maximum **5 submissions** per API key
 - The response includes your completion time (from first API call to submission)
 
 **Check your submissions:**
+
 ```bash
 curl -H "X-API-Key: YOUR_API_KEY" \
   http://datasync-dev-alb-101078500.us-east-1.elb.amazonaws.com/api/v1/submissions
@@ -194,10 +258,10 @@ Your solution should include:
 
 ## Evaluation Criteria
 
-| Category | Weight |
-|----------|--------|
-| API Discovery & Throughput | 60% |
-| Job Processing Architecture | 40% |
+| Category                    | Weight |
+| --------------------------- | ------ |
+| API Discovery & Throughput  | 60%    |
+| Job Processing Architecture | 40%    |
 
 **Your score is primarily based on throughput** - how many events per minute can your solution ingest?
 
